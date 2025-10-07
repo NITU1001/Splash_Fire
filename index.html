@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Liquid</title>
+    
+    <style>
+        body, html {
+            margin: 0; padding: 0; height: 100%;
+            background-color: #000;
+            overflow: hidden;
+            font-family: 'Poppins', sans-serif;
+            cursor: none; /* Hide the default OS cursor */
+        }
+        canvas { display: block; }
+        .instructions {
+            color: rgba(255, 255, 255, 0.7);
+            text-align: center; position: absolute; top: 20px;
+            left: 50%; transform: translateX(-50%);
+            user-select: none; z-index: 10;
+        }
+    </style>
+</head>
+<body>
+    <div class="instructions">Move mouse to attract &middot; Click to splash</div>
+    <canvas id="liquidCanvas"></canvas>
+
+    <script>
+        // --- Setup ---
+        const canvas = document.getElementById('liquidCanvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        const mouse = { x: canvas.width / 2, y: canvas.height / 2 };
+        let baseHue = 200;
+
+        // --- Particle Class ---
+        class Particle {
+            constructor() {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.radius = Math.random() * 15 + 10;
+                this.velocity = { x: 0, y: 0 };
+            }
+
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            update() {
+                const angle = Math.atan2(mouse.y - this.y, mouse.x - this.x);
+                const distance = Math.hypot(mouse.x - this.x, mouse.y - this.y);
+                const force = distance / 1000;
+                this.velocity.x += Math.cos(angle) * force;
+                this.velocity.y += Math.sin(angle) * force;
+                this.velocity.x *= 0.95;
+                this.velocity.y *= 0.95;
+                this.x += this.velocity.x;
+                this.y += this.velocity.y;
+            }
+        }
+
+        let particles = [];
+        
+        function init() {
+            particles = [];
+            const particleCount = 40;
+            for (let i = 0; i < particleCount; i++) {
+                particles.push(new Particle());
+            }
+        }
+
+        // --- Animation Loop ---
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Apply the liquid metal filter
+            ctx.filter = 'blur(20px) contrast(30)';
+            
+            const color = `hsl(${baseHue}, 100%, 70%)`;
+            ctx.fillStyle = color;
+
+            particles.forEach(p => {
+                p.update();
+                p.draw();
+            });
+
+            // Reset the filter so the cursor is drawn normally
+            ctx.filter = 'none';
+
+            // --- NEW: Draw a faint cursor on the canvas ---
+            if (mouse.x && mouse.y) {
+                ctx.beginPath();
+                ctx.arc(mouse.x, mouse.y, 15, 0, Math.PI * 2); // Circle with a 15px radius
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)'; // Faint white outline
+                ctx.lineWidth = 1;
+                ctx.stroke();
+            }
+
+            requestAnimationFrame(animate);
+        }
+
+        // --- Event Listeners ---
+        window.addEventListener('mousemove', (event) => {
+            mouse.x = event.clientX;
+            mouse.y = event.clientY;
+        });
+        
+        window.addEventListener('click', (event) => {
+            baseHue = (baseHue + 40) % 360;
+            const clickX = event.clientX;
+            const clickY = event.clientY;
+            const repelStrength = 30;
+
+            particles.forEach(p => {
+                const distance = Math.hypot(p.x - clickX, p.y - clickY);
+                if (distance < 150) {
+                    const angle = Math.atan2(p.y - clickY, p.x - clickX);
+                    p.velocity.x += Math.cos(angle) * repelStrength;
+                    p.velocity.y += Math.sin(angle) * repelStrength;
+                }
+            });
+        });
+
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            init();
+        });
+
+        // --- Start the animation ---
+        init();
+        animate();
+    </script>
+</body>
+</html>
